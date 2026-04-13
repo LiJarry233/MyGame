@@ -6,25 +6,27 @@ project(MyRaylibGame VERSION 1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Raylib 库查找（假设已安装并可用）
-find_package(raylib REQUIRED)
+# 设置raylib路径
+set(RAYLIB_DIR "${CMAKE_SOURCE_DIR}/raylib/raylib-5.0_win64_msvc16")
 
-# 所有源文件
-set(SOURCES
-    main.cpp
-    Ball.cpp
-    Paddle.cpp
-    Brick.cpp
-)
+# 包含目录
+include_directories("${RAYLIB_DIR}/include")
+include_directories("${CMAKE_SOURCE_DIR}/include")
 
-# 生成可执行文件
-add_executable(MyRaylibGame ${SOURCES})
+# 链接目录
+link_directories("${RAYLIB_DIR}/lib")
 
-# 链接 Raylib
-target_link_libraries(MyRaylibGame PRIVATE raylib)
+# ⚠️ 只保留 main.cpp
+add_executable(MyRaylibGame main.cpp)
 
-# 如果使用 Windows/MSVC，可以添加一些编译选项（可选）
+# 添加测试
+add_executable(Test Test.cpp)
+
+# 链接库
+target_link_libraries(MyRaylibGame PRIVATE raylib winmm)
+target_link_libraries(Test PRIVATE raylib winmm)
+
+# Windows 编码（可选）
 if(MSVC)
-    # 多字节字符集
     add_compile_options(/utf-8)
 endif()
