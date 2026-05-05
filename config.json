@@ -1,0 +1,35 @@
+{
+  "window": {
+    "width": 800,
+    "height": 600,
+    "title": "Breakout"
+  },
+
+  "ball": {
+    "radius": 10,
+    "speed": 4.0
+  },
+
+  "paddle": {
+    "width": 100,
+    "height": 20,
+    "speed": 9.0
+  },
+
+  "brick": {
+    "rows": 5,
+    "cols": 8,
+    "width": 80,
+    "height": 25,
+    "specialChanceSplit": 0.15,
+    "specialChanceDoubleScore": 0.10,
+    "maxSpecialRate": 0.3
+  },
+
+  "game": {
+    "lives": 3,
+    "scoreNormal": 10,
+    "scoreSpecial": 20,
+    "enlargePaddleDuration": 10.0
+  }
+}
