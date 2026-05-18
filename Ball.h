@@ -1,18 +1,23 @@
-#ifndef BALL_H 
+#ifndef BALL_H
 #define BALL_H
 
 #include "PhysicalObject.h"
 #include "VisualObject.h"
 #include <cmath>
-#include <deque>
 
 class Ball : public PhysicalObject, public VisualObject {
 private:
     int scoreValue;
 
-    // trail data
-    std::deque<Vector2> trail;
-    static const int maxTrail = 15;
+    // Trail as a fixed-size ring buffer to avoid per-frame heap traffic
+    // that std::deque<Vector2>::push_front used to incur. Trail length
+    // reduced from 15 -> 8: each ball used to push 15 DrawCircleV per
+    // frame, which is the dominant CPU draw-batch cost when many balls
+    // are alive.
+    static const int maxTrail = 8;
+    Vector2 trail[maxTrail];
+    int     trailHead = 0;   // next write index
+    int     trailLen  = 0;   // current size (<= maxTrail)
 
 public:
     Ball(Vector2 pos, float speed, float angleDeg, float r)
@@ -27,11 +32,10 @@ public:
         velocity.y = -speed * sin(rad);
     }
 
-    // update trail each frame
     void UpdateTrail() {
-        trail.push_front(position);
-        if (trail.size() > maxTrail)
-            trail.pop_back();
+        trail[trailHead] = position;
+        trailHead = (trailHead + 1) % maxTrail;
+        if (trailLen < maxTrail) trailLen++;
     }
 
     void BounceEdge(int screenW, int screenH) {
@@ -69,17 +73,18 @@ public:
 
     // draw (with trail)
     void Draw() {
-        // 拖尾
-        int i = 0;
-        for (auto& pos : trail) {
-            float alpha = 1.0f - (float)i / trail.size();
-            Color c = Fade(color, alpha * 0.6f);
-
-            DrawCircleV(pos, radius * (1.0f - i * 0.03f), c);
-            i++;
+        // Iterate from newest to oldest using the ring buffer.
+        if (trailLen > 0) {
+            float invLen = 1.0f / (float)trailLen;
+            for (int i = 0; i < trailLen; i++) {
+                int idx = trailHead - 1 - i;
+                if (idx < 0) idx += maxTrail;
+                float alpha = 1.0f - i * invLen;
+                Color c = Fade(color, alpha * 0.6f);
+                DrawCircleV(trail[idx], radius * (1.0f - i * 0.03f), c);
+            }
         }
 
-        // 本体
         DrawCircleV(position, radius, color);
     }
 

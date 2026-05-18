@@ -1,0 +1,74 @@
+{
+  "levels": [
+    {
+      "id": 1,
+      "name": "Classic",
+      "ballSpeedMult": 1.0,
+      "brickWidth": 80,
+      "brickHeight": 25,
+      "specialRate": 0.3,
+      "rows": 5,
+      "cols": 8,
+      "startX": 40,
+      "startY": 80,
+      "gapX": 10,
+      "gapY": 5
+    },
+    {
+      "id": 2,
+      "name": "Advanced",
+      "ballSpeedMult": 1.3,
+      "brickWidth": 64,
+      "brickHeight": 20,
+      "specialRate": 0.3,
+      "rows": 6,
+      "cols": 11,
+      "startX": 40,
+      "startY": 80,
+      "gapX": 5,
+      "gapY": 3
+    },
+    {
+      "id": 3,
+      "name": "Expert",
+      "ballSpeedMult": 1.6,
+      "brickWidth": 64,
+      "brickHeight": 20,
+      "specialRate": 0.3,
+      "rows": 6,
+      "cols": 11,
+      "startX": 40,
+      "startY": 80,
+      "gapX": 5,
+      "gapY": 3
+    },
+    {
+      "id": 4,
+      "name": "Hui",
+      "ballSpeedMult": 2.0,
+      "brickWidth": 52,
+      "brickHeight": 20,
+      "specialRate": 0.15,
+      "startX": 38,
+      "startY": 68,
+      "gapX": 3,
+      "gapY": 2,
+      "template": [
+        "NNNNNNNNNNNN",
+        "N..........N",
+        "N.NNNNNNNN.N",
+        "N.N......N.N",
+        "N.N.NNNN.N.N",
+        "N.N.N..N.N.N",
+        "N.N.NNNN.N.N",
+        "N.N......N.N",
+        "N.NNNNNNNN.N",
+        "N..........N",
+        "NNNNNNNNNNNN"
+      ],
+      "walls": [
+        {"x": 322, "y": 187, "width": 96, "height": 8}
+      ]
+    }
+  ]
+}

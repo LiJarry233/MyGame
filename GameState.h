@@ -3,10 +3,12 @@
 #include "Ball.h"
 #include "Paddle.h"
 #include "Brick.h"
+#include "Wall.h"
 #include "GameStateEnum.h"
 #include "Particle.h"
 #include "PowerUp.h"
 #include "PowerUpFactory.h"
+#include "SaveManager.h"
 #include <vector>
 #include <mutex>
 #include <future>
@@ -35,6 +37,7 @@ struct GameState {
     std::vector<Particle> particles;
     std::vector<Ball> balls;
     std::vector<Brick> bricks;
+    std::vector<Wall> walls;
     std::vector<PowerUp> powerups;
 
     // PowerUp工厂
@@ -72,7 +75,11 @@ struct GameState {
     // 关卡参数
     int rows, cols;
     float brickWidth, brickHeight;
-    int currentLevel;  // 当前关卡 (1, 2, 3)
+    int currentLevel;       // current level (1-4)
+    int maxUnlockedLevel;   // highest unlocked level (1-4)
+    int selectedSlot;       // selected save slot (1-3)
+    int editorSelectedIdx;  // brick editor: selected brick index
+    bool bricksEdited;      // true if editor modified bricks
 
     // 异步加载状态
     LoadingStatus loadingStatus;
@@ -95,11 +102,22 @@ struct GameState {
         , networkConnected(false)
         , clientInitialized(false)
     {
+        // Pre-reserve hot containers so common gameplay never triggers
+        // reallocation+move of all elements mid-frame.
+        particles.reserve(4096);
+        balls.reserve(64);
+        bricks.reserve(128);
+        powerups.reserve(32);
+
         score = 0;
         lives = 3;
-        currentLevel = 1;  // 默认从level1开始
+        currentLevel = 1;
+        maxUnlockedLevel = 1;
+        selectedSlot = 1;
+        editorSelectedIdx = -1;
+        bricksEdited = false;
 
-        currentState = GameStatus::MENU;
+        currentState = GameStatus::MAIN_MENU;
         ballLaunched = false;
 
         doubleScoreActive = false;

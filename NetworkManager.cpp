@@ -199,6 +199,62 @@ bool NetworkManager::IsConnected() const {
     return connected;
 }
 
+void NetworkManager::CreateWallsFromConfig(GameState& state) {
+    state.walls.clear();
+    if (!levelCfg) return;
+    const LevelDef* def = levelCfg->GetLevel(state.currentLevel);
+    if (!def) return;
+    for (auto& wd : def->walls) {
+        state.walls.emplace_back(wd.x, wd.y, wd.width, wd.height);
+    }
+}
+
+void NetworkManager::RebuildBricksFromConfig(GameState& state) {
+    state.bricks.clear();
+    if (!levelCfg) return;
+
+    const LevelDef* def = levelCfg->GetLevel(state.currentLevel);
+    if (!def) {
+        // fallback
+        state.rows = 5; state.cols = 8;
+        state.brickWidth = 80; state.brickHeight = 25;
+        for (int r = 0; r < 5; r++)
+            for (int c = 0; c < 8; c++)
+                state.bricks.emplace_back(40.0f + c * 90.0f, 80.0f + r * 30.0f, 80.0f, 25.0f, NORMAL);
+        return;
+    }
+
+    state.rows = def->rows;
+    state.cols = def->cols;
+    state.brickWidth = def->brickWidth;
+    state.brickHeight = def->brickHeight;
+
+    if (!def->gridTemplate.empty()) {
+        for (int r = 0; r < def->rows; r++) {
+            const std::string& row = def->gridTemplate[r];
+            for (int c = 0; c < def->cols && c < (int)row.size(); c++) {
+                char ch = row[c];
+                if (ch == '.') continue;
+                float x = def->startX + c * (def->brickWidth + def->gapX);
+                float y = def->startY + r * (def->brickHeight + def->gapY);
+                BrickType type = NORMAL;
+                if (ch == 'S') type = SPLIT;
+                else if (ch == 'D') type = DOUBLE_SCORE;
+                else if (ch == 'E') type = ENLARGE_PADDLE;
+                state.bricks.emplace_back(x, y, def->brickWidth, def->brickHeight, type);
+            }
+        }
+    } else {
+        for (int r = 0; r < def->rows; r++) {
+            for (int c = 0; c < def->cols; c++) {
+                float x = def->startX + c * (def->brickWidth + def->gapX);
+                float y = def->startY + r * (def->brickHeight + def->gapY);
+                state.bricks.emplace_back(x, y, def->brickWidth, def->brickHeight, NORMAL);
+            }
+        }
+    }
+}
+
 void NetworkManager::ProcessPacket(ENetPacket* packet, GameState& state) {
     if (!packet || packet->dataLength < 1) return;
 
@@ -222,49 +278,9 @@ void NetworkManager::ProcessPacket(ENetPacket* packet, GameState& state) {
         state.currentLevel = packetData.currentLevel;
         state.clientInitialized = true;
 
-        // Rebuild bricks at deterministic positions for this level
-        // We need to set level before calling ResetBricksPlain externally
-        // For now, mark as initialized - Game.h will handle brick creation
-        // Apply brick types after bricks are created
         TraceLog(LOG_INFO, "Received INIT: level=%d, bricks=%d", packetData.currentLevel, packetData.brickCount);
 
-        // Store brick types temporarily - they'll be applied after bricks are created
-        // Since bricks may not exist yet, we trigger rebuild in the state
-        state.bricks.clear();
-
-        const int BASE_ROWS = 5;
-        const int BASE_COLS = 8;
-        const float BASE_WIDTH = 80.0f;
-        const float BASE_HEIGHT = 25.0f;
-
-        if (state.currentLevel == 2 || state.currentLevel == 3) {
-            state.rows = BASE_ROWS + 1;
-            state.cols = BASE_COLS + 3;
-            state.brickWidth = BASE_WIDTH * 0.8f;
-            state.brickHeight = BASE_HEIGHT * 0.8f;
-        } else {
-            state.rows = BASE_ROWS;
-            state.cols = BASE_COLS;
-            state.brickWidth = BASE_WIDTH;
-            state.brickHeight = BASE_HEIGHT;
-        }
-
-        int screenWidth = 800;
-        for (int r = 0; r < state.rows; r++) {
-            for (int c = 0; c < state.cols; c++) {
-                float totalWidth = state.cols * state.brickWidth;
-                float totalGapWidth = (state.cols - 1) * 10.0f;
-                float availableWidth = screenWidth - 80.0f;
-                float gap = 10.0f;
-                if (totalWidth + totalGapWidth > availableWidth) {
-                    gap = (availableWidth - totalWidth) / (state.cols - 1);
-                    if (gap < 1.0f) gap = 1.0f;
-                }
-                float x = 40.0f + c * (state.brickWidth + gap);
-                float y = 80.0f + r * (state.brickHeight + 5.0f);
-                state.bricks.emplace_back(x, y, state.brickWidth, state.brickHeight, NORMAL);
-            }
-        }
+        RebuildBricksFromConfig(state);
 
         // Apply brick types from INIT packet
         for (size_t i = 0; i < packetData.brickCount && i < state.bricks.size(); ++i) {
@@ -276,6 +292,7 @@ void NetworkManager::ProcessPacket(ENetPacket* packet, GameState& state) {
             state.balls.emplace_back(Vector2{400, 300}, 4.0f, 90.0f, state.ballRadius);
         }
 
+        CreateWallsFromConfig(state);
         SendInitAck();
     }
     else if (packetType == static_cast<uint8_t>(NetworkPacketType::HOST_SNAPSHOT)) {
@@ -308,44 +325,11 @@ void NetworkManager::ProcessPacket(ENetPacket* packet, GameState& state) {
         state.loadingStatus = static_cast<LoadingStatus>(packetData.loadingStatus);
         state.backgroundLoaded = packetData.backgroundLoaded != 0;
 
-        // Detect level change - rebuild bricks
+        // Detect level change - rebuild bricks from config
         if (packetData.currentLevel != state.currentLevel) {
             state.currentLevel = packetData.currentLevel;
-            state.bricks.clear();
-
-            const int BASE_ROWS = 5;
-            const int BASE_COLS = 8;
-            const float BASE_WIDTH = 80.0f;
-            const float BASE_HEIGHT = 25.0f;
-
-            if (state.currentLevel == 2 || state.currentLevel == 3) {
-                state.rows = BASE_ROWS + 1;
-                state.cols = BASE_COLS + 3;
-                state.brickWidth = BASE_WIDTH * 0.8f;
-                state.brickHeight = BASE_HEIGHT * 0.8f;
-            } else {
-                state.rows = BASE_ROWS;
-                state.cols = BASE_COLS;
-                state.brickWidth = BASE_WIDTH;
-                state.brickHeight = BASE_HEIGHT;
-            }
-
-            int screenWidth = 800;
-            for (int r = 0; r < state.rows; r++) {
-                for (int c = 0; c < state.cols; c++) {
-                    float totalWidth = state.cols * state.brickWidth;
-                    float totalGapWidth = (state.cols - 1) * 10.0f;
-                    float availableWidth = screenWidth - 80.0f;
-                    float gap = 10.0f;
-                    if (totalWidth + totalGapWidth > availableWidth) {
-                        gap = (availableWidth - totalWidth) / (state.cols - 1);
-                        if (gap < 1.0f) gap = 1.0f;
-                    }
-                    float x = 40.0f + c * (state.brickWidth + gap);
-                    float y = 80.0f + r * (state.brickHeight + 5.0f);
-                    state.bricks.emplace_back(x, y, state.brickWidth, state.brickHeight, NORMAL);
-                }
-            }
+            RebuildBricksFromConfig(state);
+            CreateWallsFromConfig(state);
         }
 
         // Sync brick states and types

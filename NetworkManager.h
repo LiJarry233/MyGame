@@ -3,6 +3,7 @@
 #include <string>
 #include <cstdint>
 #include "GameState.h"
+#include "LevelConfig.h"
 #include <enet/enet.h>
 
 enum class NetworkMode {
@@ -76,6 +77,8 @@ public:
     bool InitializeHost(uint16_t port, GameState& state);
     bool InitializeClient(const std::string& hostName, uint16_t port, GameState& state);
 
+    void SetLevelConfig(const LevelsConfig* cfg) { levelCfg = cfg; }
+
     void Service(GameState& state);
     void SendInit(const GameState& state);
     void SendHostSnapshot(const GameState& state);
@@ -90,7 +93,10 @@ private:
     NetworkMode mode;
     bool connected;
     bool initAckReceived;
+    const LevelsConfig* levelCfg = nullptr;
 
     void ProcessPacket(ENetPacket* packet, GameState& state);
     void SendInitAck();
+    void CreateWallsFromConfig(GameState& state);
+    void RebuildBricksFromConfig(GameState& state);
 };
